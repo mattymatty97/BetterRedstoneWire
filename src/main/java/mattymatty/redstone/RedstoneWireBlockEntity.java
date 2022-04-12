@@ -1,7 +1,11 @@
 package mattymatty.redstone;
 
+import mattymatty.redstone.mixins.RedstoneWireAccessor;
+import mattymatty.redstone.mixins.RedstoneWireMixin;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.RedstoneWireBlock;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.nbt.NbtCompound;
@@ -39,7 +43,15 @@ public class RedstoneWireBlockEntity extends BlockEntity {
         }
 
         public boolean isValid(World world){
-            return world.getEmittedRedstonePower(blockPos,direction) == power_level;
+            Block block = world.getBlockState(blockPos.offset(direction.getOpposite())).getBlock();
+            if ( block instanceof RedstoneWireBlock wire) {
+                boolean mem = ((RedstoneWireAccessor) wire).getWiresGivePower();
+                ((RedstoneWireAccessor) wire).setWiresGivePower(false);
+                int level = world.getEmittedRedstonePower(blockPos, direction);
+                ((RedstoneWireAccessor) wire).setWiresGivePower(mem);
+                return level == power_level;
+            }else
+                return false;
         }
 
         public boolean sameSource(RedstoneEntry entry){

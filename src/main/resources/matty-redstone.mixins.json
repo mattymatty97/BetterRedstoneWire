@@ -4,7 +4,8 @@
   "package": "mattymatty.redstone.mixins",
   "compatibilityLevel": "JAVA_16",
   "mixins": [
-    "RedstoneWireMixin"
+    "RedstoneWireMixin",
+    "RedstoneWireAccessor"
   ],
   "client": [
   ],
