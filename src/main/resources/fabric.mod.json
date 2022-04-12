@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "matty-redstone",
+  "version": "${version}",
+  "name": "Better Redstone Wire",
+  "description": "improved algorithm for redstone updates",
+  "authors": [
+    "mattymatty"
+  ],
+  "contact": {
+    "discord": "mattymatty#9621",
+    "homepage": "https://github.com/mattymatty97/carpet-shadow/releases"
+  },
+  "license": "MIT",
+  "icon": "assets/matty-redstone/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "mattymatty.redstone.BetterRedstoneWire"
+    ]
+  },
+  "mixins": [
+    "matty-redstone.mixins.json"
+  ],
+  "accessWidener": "matty-redstone.accesswidener",
+  "depends": {
+    "fabricloader": ">=0.11.7",
+    "minecraft": "1.17.x"
+  }
+}
