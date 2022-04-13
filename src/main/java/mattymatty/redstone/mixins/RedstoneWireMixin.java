@@ -14,7 +14,6 @@ import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -34,6 +33,10 @@ public abstract class RedstoneWireMixin extends Block implements BlockEntityProv
     @Shadow private boolean wiresGivePower;
 
     @Shadow @Final public static IntProperty POWER;
+
+    @Shadow protected abstract void update(World world, BlockPos pos, BlockState state);
+
+    @Shadow @Final private BlockState dotState;
 
     public RedstoneWireMixin(Settings settings) {
         super(settings);
@@ -98,8 +101,6 @@ public abstract class RedstoneWireMixin extends Block implements BlockEntityProv
                 }
             }
 
-
-
             int i = state.get(POWER);
             int j = redstoneWireBlockEntity.getPower();
             if (i!=j){
@@ -109,6 +110,15 @@ public abstract class RedstoneWireMixin extends Block implements BlockEntityProv
                 updateNeighbors(world, pos);
             }
             ci.cancel();
+        }
+    }
+
+    @Inject(method = "neighborUpdate", at=@At(value = "INVOKE", target = "Lnet/minecraft/block/RedstoneWireBlock;update(Lnet/minecraft/world/World;Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/block/BlockState;)V", shift = At.Shift.BEFORE))
+    public void neighborUpdate(BlockState state, World world, BlockPos pos, Block block, BlockPos fromPos, boolean notify, CallbackInfo ci) {
+        BlockEntity blockEntity = world.getBlockEntity(pos);
+        if (blockEntity instanceof RedstoneWireBlockEntity redstoneWireBlockEntity){
+            Direction direction = Direction.fromVector(fromPos.subtract(pos));
+            checkNewConnectionsInDirection(world,pos,direction,redstoneWireBlockEntity);
         }
     }
 
@@ -134,28 +144,65 @@ public abstract class RedstoneWireMixin extends Block implements BlockEntityProv
     private void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify, CallbackInfo ci){
         BlockEntity blockEntity = world.getBlockEntity(pos);
         if (blockEntity instanceof RedstoneWireBlockEntity redstoneWireBlockEntity) {
-            for (Direction direction : Direction.Type.HORIZONTAL) {
-                BlockPos blockPos = pos.offset(direction);
-                BlockState blockState = world.getBlockState(blockPos);
-                checkGreater(world, redstoneWireBlockEntity, blockPos);
-                if (blockState.isSolidBlock(world, blockPos)){
-                    if (!world.getBlockState(pos.up()).isSolidBlock(world,pos.up())) {
-                        BlockPos blockPos2 = blockPos.up();
-                        checkGreater(world, redstoneWireBlockEntity, blockPos2);
-                    }
-                }else{
-                    BlockPos blockPos3 = blockPos.down();
-                    checkGreater(world, redstoneWireBlockEntity, blockPos3);
+            checkNewConnections(world, pos, redstoneWireBlockEntity);
+        }
+    }
+
+    private void checkNewConnections(World world, BlockPos pos, RedstoneWireBlockEntity redstoneWireBlockEntity) {
+        for (Direction direction : Direction.Type.HORIZONTAL) {
+            BlockPos blockPos = pos.offset(direction);
+            BlockState blockState = world.getBlockState(blockPos);
+            checkGreater(world, redstoneWireBlockEntity, blockPos);
+            if (blockState.isSolidBlock(world, blockPos)){
+                if (!world.getBlockState(pos.up()).isSolidBlock(world, pos.up())) {
+                    BlockPos blockPos2 = blockPos.up();
+                    checkGreater(world, redstoneWireBlockEntity, blockPos2);
+                }
+            }else{
+                BlockPos blockPos3 = blockPos.down();
+                checkGreater(world, redstoneWireBlockEntity, blockPos3);
+            }
+        }
+        if (redstoneWireBlockEntity.getPower() > 0){
+            RedstoneEntry next = redstoneWireBlockEntity.current_power_source.clone();
+            next.distance++;
+            RedstoneUpdate.propagateUpdate(world, pos, next, next.getPower(), false);
+            RedstoneUpdate update;
+            while ((update = RedstoneUpdate.getNextUpdate()) != null) {
+                update.run();
+            }
+        }
+    }
+
+    private void checkNewConnectionsInDirection(World world, BlockPos pos, Direction direction, RedstoneWireBlockEntity redstoneWireBlockEntity) {
+        BlockPos blockPos = pos.offset(direction);
+        if (direction == Direction.UP){
+            if (!world.getBlockState(pos.up()).isSolidBlock(world, pos.up())) {
+                for (Direction direction2 : Direction.Type.HORIZONTAL) {
+                    BlockPos blockPos2 = blockPos.offset(direction2);
+                    checkGreater(world, redstoneWireBlockEntity, blockPos2);
                 }
             }
-            if (redstoneWireBlockEntity.getPower() > 0){
-                RedstoneEntry next = redstoneWireBlockEntity.current_power_source.clone();
-                next.distance++;
-                RedstoneUpdate.propagateUpdate(world, pos, next, next.getPower(), false);
-                RedstoneUpdate update;
-                while ((update = RedstoneUpdate.getNextUpdate()) != null) {
-                    update.run();
+        }else {
+            BlockState blockState = world.getBlockState(blockPos);
+            checkGreater(world, redstoneWireBlockEntity, blockPos);
+            if (blockState.isSolidBlock(world, blockPos)) {
+                if (!world.getBlockState(pos.up()).isSolidBlock(world, pos.up())) {
+                    BlockPos blockPos2 = blockPos.up();
+                    checkGreater(world, redstoneWireBlockEntity, blockPos2);
                 }
+            } else {
+                BlockPos blockPos3 = blockPos.down();
+                checkGreater(world, redstoneWireBlockEntity, blockPos3);
+            }
+        }
+        if (redstoneWireBlockEntity.getPower() > 0){
+            RedstoneEntry next = redstoneWireBlockEntity.current_power_source.clone();
+            next.distance++;
+            RedstoneUpdate.propagateUpdate(world, pos, next, next.getPower(), false);
+            RedstoneUpdate update;
+            while ((update = RedstoneUpdate.getNextUpdate()) != null) {
+                update.run();
             }
         }
     }
@@ -171,7 +218,5 @@ public abstract class RedstoneWireMixin extends Block implements BlockEntityProv
             }
         }
     }
-
-
 
 }

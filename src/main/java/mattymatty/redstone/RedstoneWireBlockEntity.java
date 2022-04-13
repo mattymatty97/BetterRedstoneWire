@@ -122,6 +122,14 @@ public class RedstoneWireBlockEntity extends BlockEntity {
             return true;
         if (!world.getBlockState(parentPos).isOf(Blocks.REDSTONE_WIRE))
             return false;
+        int dy = parentPos.getY() - pos.getY();
+        if (dy < 0 && world.getBlockState(parentPos.up()).isSolidBlock(world,parentPos.up())){
+            return false;
+        }
+        if (dy > 0 && ( !world.getBlockState(parentPos.down()).isSolidBlock(world,parentPos.down())
+        || world.getBlockState(pos.up()).isSolidBlock(world,pos.up()))){
+            return false;
+        }
         BlockEntity blockEntity = world.getBlockEntity(parentPos);
         if (blockEntity instanceof RedstoneWireBlockEntity redstoneWireBlockEntity){
             return redstoneWireBlockEntity.current_power_source.sameSource(this.current_power_source);
