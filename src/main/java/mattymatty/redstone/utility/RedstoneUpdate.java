@@ -10,6 +10,7 @@ import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
+import org.apache.logging.log4j.core.pattern.AbstractStyleNameConverter;
 
 import java.util.LinkedList;
 import java.util.Queue;
@@ -41,6 +42,7 @@ public class RedstoneUpdate implements Runnable {
                 if (redstoneWireBlockEntity.getPower() > 0) {
                     if (redstoneWireBlockEntity.current_power_source.sameSource(entry)) {
                         redstoneWireBlockEntity.current_power_source = null;
+                        redstoneWireBlockEntity.parentPos = null;
                         changed = true;
                     }else{
                         if(redstoneWireBlockEntity.current_power_source.isValid(world)) {
@@ -54,7 +56,6 @@ public class RedstoneUpdate implements Runnable {
                 if (entry.getPower() > redstoneWireBlockEntity.getPower()){
                     redstoneWireBlockEntity.current_power_source = entry;
                     redstoneWireBlockEntity.parentPos = from;
-                    changed = true;
                 }
             }
 

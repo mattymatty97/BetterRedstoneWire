@@ -34,10 +34,6 @@ public abstract class RedstoneWireMixin extends Block implements BlockEntityProv
 
     @Shadow @Final public static IntProperty POWER;
 
-    @Shadow protected abstract void update(World world, BlockPos pos, BlockState state);
-
-    @Shadow @Final private BlockState dotState;
-
     public RedstoneWireMixin(Settings settings) {
         super(settings);
     }
@@ -115,10 +111,15 @@ public abstract class RedstoneWireMixin extends Block implements BlockEntityProv
 
     @Inject(method = "neighborUpdate", at=@At(value = "INVOKE", target = "Lnet/minecraft/block/RedstoneWireBlock;update(Lnet/minecraft/world/World;Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/block/BlockState;)V", shift = At.Shift.BEFORE))
     public void neighborUpdate(BlockState state, World world, BlockPos pos, Block block, BlockPos fromPos, boolean notify, CallbackInfo ci) {
+        if (world.getBlockState(fromPos).isOf(Blocks.REDSTONE_WIRE))
+            return;
         BlockEntity blockEntity = world.getBlockEntity(pos);
         if (blockEntity instanceof RedstoneWireBlockEntity redstoneWireBlockEntity){
-            Direction direction = Direction.fromVector(fromPos.subtract(pos));
-            checkNewConnectionsInDirection(world,pos,direction,redstoneWireBlockEntity);
+            BlockPos vect = fromPos.subtract(pos);
+            if (vect.getSquaredDistance(BlockPos.ORIGIN) == 1) {
+                Direction direction = Direction.fromVector(fromPos.subtract(pos));
+                checkNewConnectionsInDirection(world, pos, direction, redstoneWireBlockEntity);
+            }
         }
     }
 
@@ -149,21 +150,23 @@ public abstract class RedstoneWireMixin extends Block implements BlockEntityProv
     }
 
     private void checkNewConnections(World world, BlockPos pos, RedstoneWireBlockEntity redstoneWireBlockEntity) {
+        boolean changed = false;
         for (Direction direction : Direction.Type.HORIZONTAL) {
             BlockPos blockPos = pos.offset(direction);
             BlockState blockState = world.getBlockState(blockPos);
-            checkGreater(world, redstoneWireBlockEntity, blockPos);
+            changed |= checkGreater(world, redstoneWireBlockEntity, blockPos);
             if (blockState.isSolidBlock(world, blockPos)){
                 if (!world.getBlockState(pos.up()).isSolidBlock(world, pos.up())) {
                     BlockPos blockPos2 = blockPos.up();
-                    checkGreater(world, redstoneWireBlockEntity, blockPos2);
+                    changed |= checkGreater(world, redstoneWireBlockEntity, blockPos2);
                 }
             }else{
                 BlockPos blockPos3 = blockPos.down();
-                checkGreater(world, redstoneWireBlockEntity, blockPos3);
+                changed |= checkGreater(world, redstoneWireBlockEntity, blockPos3);
             }
         }
-        if (redstoneWireBlockEntity.getPower() > 0){
+
+        if (changed){
             RedstoneEntry next = redstoneWireBlockEntity.current_power_source.clone();
             next.distance++;
             RedstoneUpdate.propagateUpdate(world, pos, next, next.getPower(), false);
@@ -175,28 +178,32 @@ public abstract class RedstoneWireMixin extends Block implements BlockEntityProv
     }
 
     private void checkNewConnectionsInDirection(World world, BlockPos pos, Direction direction, RedstoneWireBlockEntity redstoneWireBlockEntity) {
+        boolean changed = false;
         BlockPos blockPos = pos.offset(direction);
+        if (direction == Direction.DOWN)
+            return;
         if (direction == Direction.UP){
             if (!world.getBlockState(pos.up()).isSolidBlock(world, pos.up())) {
                 for (Direction direction2 : Direction.Type.HORIZONTAL) {
                     BlockPos blockPos2 = blockPos.offset(direction2);
-                    checkGreater(world, redstoneWireBlockEntity, blockPos2);
+                    changed |= checkGreater(world, redstoneWireBlockEntity, blockPos2);
                 }
             }
         }else {
             BlockState blockState = world.getBlockState(blockPos);
-            checkGreater(world, redstoneWireBlockEntity, blockPos);
+            changed = checkGreater(world, redstoneWireBlockEntity, blockPos);
             if (blockState.isSolidBlock(world, blockPos)) {
                 if (!world.getBlockState(pos.up()).isSolidBlock(world, pos.up())) {
                     BlockPos blockPos2 = blockPos.up();
-                    checkGreater(world, redstoneWireBlockEntity, blockPos2);
+                    changed |= checkGreater(world, redstoneWireBlockEntity, blockPos2);
                 }
             } else {
                 BlockPos blockPos3 = blockPos.down();
-                checkGreater(world, redstoneWireBlockEntity, blockPos3);
+                changed |= checkGreater(world, redstoneWireBlockEntity, blockPos3);
             }
         }
-        if (redstoneWireBlockEntity.getPower() > 0){
+
+        if (changed){
             RedstoneEntry next = redstoneWireBlockEntity.current_power_source.clone();
             next.distance++;
             RedstoneUpdate.propagateUpdate(world, pos, next, next.getPower(), false);
@@ -207,7 +214,7 @@ public abstract class RedstoneWireMixin extends Block implements BlockEntityProv
         }
     }
 
-    private void checkGreater(World world, RedstoneWireBlockEntity redstoneWireBlockEntity, BlockPos blockPos2) {
+    private boolean checkGreater(World world, RedstoneWireBlockEntity redstoneWireBlockEntity, BlockPos blockPos2) {
         BlockEntity destBlockEntity = world.getBlockEntity(blockPos2);
         if (destBlockEntity instanceof RedstoneWireBlockEntity destRedstoneBlockEntity) {
             if(destRedstoneBlockEntity.getPower() > 1 && destRedstoneBlockEntity.getPower() > redstoneWireBlockEntity.getPower()){
@@ -215,8 +222,10 @@ public abstract class RedstoneWireMixin extends Block implements BlockEntityProv
                 entry.distance++;
                 redstoneWireBlockEntity.current_power_source = entry;
                 redstoneWireBlockEntity.parentPos = blockPos2;
+                return true;
             }
         }
+        return false;
     }
 
 }

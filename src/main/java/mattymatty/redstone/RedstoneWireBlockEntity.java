@@ -118,20 +118,22 @@ public class RedstoneWireBlockEntity extends BlockEntity {
     }
 
     public boolean hasValidParent(World world){
-        if (this.parentPos == null)
+        if (this.parentPos == null || this.current_power_source == null)
             return true;
         if (!world.getBlockState(parentPos).isOf(Blocks.REDSTONE_WIRE))
             return false;
-        int dy = parentPos.getY() - pos.getY();
-        if (dy < 0 && world.getBlockState(parentPos.up()).isSolidBlock(world,parentPos.up())){
+        int dy = pos.getY() - parentPos.getY();
+        if (dy > 0 && world.getBlockState(parentPos.up()).isSolidBlock(world,parentPos.up())){
             return false;
         }
-        if (dy > 0 && ( !world.getBlockState(parentPos.down()).isSolidBlock(world,parentPos.down())
+        if (dy < 0 && ( !world.getBlockState(parentPos.down()).isSolidBlock(world,parentPos.down())
         || world.getBlockState(pos.up()).isSolidBlock(world,pos.up()))){
             return false;
         }
         BlockEntity blockEntity = world.getBlockEntity(parentPos);
         if (blockEntity instanceof RedstoneWireBlockEntity redstoneWireBlockEntity){
+            if (redstoneWireBlockEntity.current_power_source == null)
+                return false;
             return redstoneWireBlockEntity.current_power_source.sameSource(this.current_power_source);
         }else
             return false;
