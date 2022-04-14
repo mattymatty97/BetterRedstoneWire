@@ -27,7 +27,7 @@ dependencies {
 
 
 loom {
-    accessWidenerPath  = file("src/main/resources/matty-redstone.accesswidener")
+    accessWidenerPath = file("src/main/resources/matty-redstone.accesswidener")
 }
 
 processResources {
